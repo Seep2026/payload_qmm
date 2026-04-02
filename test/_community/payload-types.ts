@@ -69,8 +69,21 @@ export interface Config {
   collections: {
     posts: Post;
     media: Media;
-    'payload-kv': PayloadKv;
     users: User;
+    themes: Theme;
+    tags: Tag;
+    stories: Story;
+    'story-versions': StoryVersion;
+    'insight-sets': InsightSet;
+    'insight-set-versions': InsightSetVersion;
+    'insight-cards': InsightCard;
+    'insight-story-units': InsightStoryUnit;
+    'unit-releases': UnitRelease;
+    'fingerprint-lexicon-releases': FingerprintLexiconRelease;
+    'insight-runs': InsightRun;
+    'insight-attempts': InsightAttempt;
+    'insight-responses': InsightResponse;
+    'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -79,14 +92,27 @@ export interface Config {
   collectionsSelect: {
     posts: PostsSelect<false> | PostsSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
-    'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
+    themes: ThemesSelect<false> | ThemesSelect<true>;
+    tags: TagsSelect<false> | TagsSelect<true>;
+    stories: StoriesSelect<false> | StoriesSelect<true>;
+    'story-versions': StoryVersionsSelect<false> | StoryVersionsSelect<true>;
+    'insight-sets': InsightSetsSelect<false> | InsightSetsSelect<true>;
+    'insight-set-versions': InsightSetVersionsSelect<false> | InsightSetVersionsSelect<true>;
+    'insight-cards': InsightCardsSelect<false> | InsightCardsSelect<true>;
+    'insight-story-units': InsightStoryUnitsSelect<false> | InsightStoryUnitsSelect<true>;
+    'unit-releases': UnitReleasesSelect<false> | UnitReleasesSelect<true>;
+    'fingerprint-lexicon-releases': FingerprintLexiconReleasesSelect<false> | FingerprintLexiconReleasesSelect<true>;
+    'insight-runs': InsightRunsSelect<false> | InsightRunsSelect<true>;
+    'insight-attempts': InsightAttemptsSelect<false> | InsightAttemptsSelect<true>;
+    'insight-responses': InsightResponsesSelect<false> | InsightResponsesSelect<true>;
+    'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
   };
   db: {
-    defaultIDType: string;
+    defaultIDType: number;
   };
   fallbackLocale: null;
   globals: {
@@ -128,7 +154,7 @@ export interface UserAuthOperations {
  * via the `definition` "posts".
  */
 export interface Post {
-  id: string;
+  id: number;
   title?: string | null;
   content?: {
     root: {
@@ -153,7 +179,7 @@ export interface Post {
  * via the `definition` "media".
  */
 export interface Media {
-  id: string;
+  id: number;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -194,29 +220,15 @@ export interface Media {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "payload-kv".
- */
-export interface PayloadKv {
-  id: string;
-  key: string;
-  data:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "users".
  */
 export interface User {
-  id: string;
+  id: number;
   updatedAt: string;
   createdAt: string;
+  enableAPIKey?: boolean | null;
+  apiKey?: string | null;
+  apiKeyIndex?: string | null;
   email: string;
   resetPasswordToken?: string | null;
   resetPasswordExpiration?: string | null;
@@ -236,27 +248,443 @@ export interface User {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "themes".
+ */
+export interface Theme {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string | null;
+  status: 'defined' | 'operating' | 'expanding' | 'iterating' | 'split' | 'archived';
+  priority?: number | null;
+  archivedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "tags".
+ */
+export interface Tag {
+  id: number;
+  name: string;
+  slug: string;
+  status: 'active' | 'cold' | 'merge_candidate' | 'deprecated' | 'archived';
+  heatScore?: number | null;
+  usageCount?: number | null;
+  mergeTo?: (number | null) | Tag;
+  deprecatedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "stories".
+ */
+export interface Story {
+  id: number;
+  title: string;
+  slug: string;
+  theme: number | Theme;
+  tags?: (number | Tag)[] | null;
+  status: 'draft' | 'pending' | 'published' | 'testing' | 'archived';
+  summary?: string | null;
+  coverMedia?: (number | null) | Media;
+  currentVersion?: (number | null) | StoryVersion;
+  publishedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "story-versions".
+ */
+export interface StoryVersion {
+  id: number;
+  story: number | Story;
+  version: string;
+  /**
+   * Auto-generated display title showing Story Title (vX) - Status
+   */
+  displayTitle?: string | null;
+  status: 'draft' | 'review' | 'published' | 'retired';
+  title: string;
+  subtitle?: string | null;
+  contentBlocks: (
+    | {
+        content: {
+          root: {
+            type: string;
+            children: {
+              type: any;
+              version: number;
+              [k: string]: unknown;
+            }[];
+            direction: ('ltr' | 'rtl') | null;
+            format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+            indent: number;
+            version: number;
+          };
+          [k: string]: unknown;
+        };
+        id?: string | null;
+        blockName?: string | null;
+        blockType: 'richTextBlock';
+      }
+    | {
+        image: number | Media;
+        caption?: string | null;
+        id?: string | null;
+        blockName?: string | null;
+        blockType: 'imageBlock';
+      }
+    | {
+        videoURL?: string | null;
+        caption?: string | null;
+        id?: string | null;
+        blockName?: string | null;
+        blockType: 'videoBlock';
+      }
+    | {
+        quote: string;
+        author?: string | null;
+        id?: string | null;
+        blockName?: string | null;
+        blockType: 'quoteBlock';
+      }
+  )[];
+  changeNote?: string | null;
+  effectiveFrom?: string | null;
+  effectiveTo?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "insight-sets".
+ */
+export interface InsightSet {
+  id: number;
+  name: string;
+  slug: string;
+  proposition: string;
+  description?: string | null;
+  theme: number | Theme;
+  status: 'draft' | 'active' | 'paused' | 'archived';
+  currentVersion?: (number | null) | InsightSetVersion;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "insight-set-versions".
+ */
+export interface InsightSetVersion {
+  id: number;
+  insightSet: number | InsightSet;
+  version: string;
+  /**
+   * Auto-generated display title showing InsightSet Name (vX) - Status
+   */
+  displayTitle?: string | null;
+  status: 'draft' | 'review' | 'published' | 'retired';
+  introTitle?: string | null;
+  introSubtitle?: string | null;
+  resultMappingConfig:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  cardCount?: number | null;
+  changeNote?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "insight-cards".
+ */
+export interface InsightCard {
+  id: number;
+  insightSetVersion: number | InsightSetVersion;
+  order: number;
+  statement: string;
+  hint?: string | null;
+  isActive?: boolean | null;
+  weight?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "insight-story-units".
+ */
+export interface InsightStoryUnit {
+  id: number;
+  story: number | Story;
+  insightSet: number | InsightSet;
+  status: 'active' | 'paused' | 'archived';
+  note?: string | null;
+  /**
+   * Auto-generated display title showing Story and InsightSet names
+   */
+  displayTitle?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Publish story and insight set combinations to the web.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "unit-releases".
+ */
+export interface UnitRelease {
+  id: number;
+  themeId?: string | null;
+  /**
+   * This field will be auto-filled when you select a Theme above.
+   */
+  unit: number | InsightStoryUnit;
+  /**
+   * The version of the Story to publish. Above, select a Theme first, then click "Auto-Fill Form" to automatically select the correct Story Version. The dropdown shows: "Story Title (vX) - Status"
+   */
+  storyVersion: number | StoryVersion;
+  /**
+   * The version of the Insight Set to publish. Above, select a Theme first, then click "Auto-Fill Form" to automatically select the correct InsightSet Version. The dropdown shows: "InsightSet Name (vX) - Status"
+   */
+  insightSetVersion: number | InsightSetVersion;
+  status: 'scheduled' | 'active' | 'paused' | 'ended';
+  startAt: string;
+  endAt?: string | null;
+  audienceRule?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  trafficWeight?: number | null;
+  priority?: number | null;
+  channel: 'web' | 'h5' | 'miniapp';
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "fingerprint-lexicon-releases".
+ */
+export interface FingerprintLexiconRelease {
+  id: number;
+  version: string;
+  status: 'draft' | 'active' | 'archived';
+  locale: 'en';
+  activeFrom?: string | null;
+  activeTo?: string | null;
+  firstWords: {
+    word: string;
+    weight?: number | null;
+    enabled?: boolean | null;
+    id?: string | null;
+  }[];
+  secondWords: {
+    word: string;
+    weight?: number | null;
+    enabled?: boolean | null;
+    id?: string | null;
+  }[];
+  bannedPairs?:
+    | {
+        firstWord: string;
+        secondWord: string;
+        id?: string | null;
+      }[]
+    | null;
+  notes?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "insight-runs".
+ */
+export interface InsightRun {
+  id: number;
+  runId: string;
+  clientSessionId: string;
+  flowVersion?: string | null;
+  themeId: string;
+  themeName: string;
+  themeSentence?: string | null;
+  storySlug?: string | null;
+  status: 'in_progress' | 'completed' | 'dropped';
+  startedAt: string;
+  completedAt?: string | null;
+  resultKey?: string | null;
+  fingerprintPhrase?: string | null;
+  fingerprintVersion?: string | null;
+  fingerprintKey?: string | null;
+  responseCount?: number | null;
+  responses?:
+    | {
+        order: number;
+        cardKey?: string | null;
+        statement?: string | null;
+        option: 'off' | 'unsure' | 'right';
+        answeredAt: string;
+        latencyMs?: number | null;
+        id?: string | null;
+      }[]
+    | null;
+  resultSnapshot?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "insight-attempts".
+ */
+export interface InsightAttempt {
+  id: number;
+  release: number | UnitRelease;
+  user?: (number | null) | User;
+  sessionId: string;
+  startedAt: string;
+  completedAt?: string | null;
+  status: 'in_progress' | 'completed' | 'dropped';
+  resultKey?: string | null;
+  resultSnapshot?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "insight-responses".
+ */
+export interface InsightResponse {
+  id: number;
+  attempt: number | InsightAttempt;
+  card: number | InsightCard;
+  order: number;
+  option: 'off' | 'unsure' | 'right';
+  latencyMs?: number | null;
+  answeredAt: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-kv".
+ */
+export interface PayloadKv {
+  id: number;
+  key: string;
+  data:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
-  id: string;
+  id: number;
   document?:
     | ({
         relationTo: 'posts';
-        value: string | Post;
+        value: number | Post;
       } | null)
     | ({
         relationTo: 'media';
-        value: string | Media;
+        value: number | Media;
       } | null)
     | ({
         relationTo: 'users';
-        value: string | User;
+        value: number | User;
+      } | null)
+    | ({
+        relationTo: 'themes';
+        value: number | Theme;
+      } | null)
+    | ({
+        relationTo: 'tags';
+        value: number | Tag;
+      } | null)
+    | ({
+        relationTo: 'stories';
+        value: number | Story;
+      } | null)
+    | ({
+        relationTo: 'story-versions';
+        value: number | StoryVersion;
+      } | null)
+    | ({
+        relationTo: 'insight-sets';
+        value: number | InsightSet;
+      } | null)
+    | ({
+        relationTo: 'insight-set-versions';
+        value: number | InsightSetVersion;
+      } | null)
+    | ({
+        relationTo: 'insight-cards';
+        value: number | InsightCard;
+      } | null)
+    | ({
+        relationTo: 'insight-story-units';
+        value: number | InsightStoryUnit;
+      } | null)
+    | ({
+        relationTo: 'unit-releases';
+        value: number | UnitRelease;
+      } | null)
+    | ({
+        relationTo: 'fingerprint-lexicon-releases';
+        value: number | FingerprintLexiconRelease;
+      } | null)
+    | ({
+        relationTo: 'insight-runs';
+        value: number | InsightRun;
+      } | null)
+    | ({
+        relationTo: 'insight-attempts';
+        value: number | InsightAttempt;
+      } | null)
+    | ({
+        relationTo: 'insight-responses';
+        value: number | InsightResponse;
       } | null);
   globalSlug?: string | null;
   user: {
     relationTo: 'users';
-    value: string | User;
+    value: number | User;
   };
   updatedAt: string;
   createdAt: string;
@@ -266,10 +694,10 @@ export interface PayloadLockedDocument {
  * via the `definition` "payload-preferences".
  */
 export interface PayloadPreference {
-  id: string;
+  id: number;
   user: {
     relationTo: 'users';
-    value: string | User;
+    value: number | User;
   };
   key?: string | null;
   value?:
@@ -289,7 +717,7 @@ export interface PayloadPreference {
  * via the `definition` "payload-migrations".
  */
 export interface PayloadMigration {
-  id: string;
+  id: number;
   name?: string | null;
   batch?: number | null;
   updatedAt: string;
@@ -358,19 +786,14 @@ export interface MediaSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "payload-kv_select".
- */
-export interface PayloadKvSelect<T extends boolean = true> {
-  key?: T;
-  data?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "users_select".
  */
 export interface UsersSelect<T extends boolean = true> {
   updatedAt?: T;
   createdAt?: T;
+  enableAPIKey?: T;
+  apiKey?: T;
+  apiKeyIndex?: T;
   email?: T;
   resetPasswordToken?: T;
   resetPasswordExpiration?: T;
@@ -385,6 +808,292 @@ export interface UsersSelect<T extends boolean = true> {
         createdAt?: T;
         expiresAt?: T;
       };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "themes_select".
+ */
+export interface ThemesSelect<T extends boolean = true> {
+  name?: T;
+  slug?: T;
+  description?: T;
+  status?: T;
+  priority?: T;
+  archivedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "tags_select".
+ */
+export interface TagsSelect<T extends boolean = true> {
+  name?: T;
+  slug?: T;
+  status?: T;
+  heatScore?: T;
+  usageCount?: T;
+  mergeTo?: T;
+  deprecatedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "stories_select".
+ */
+export interface StoriesSelect<T extends boolean = true> {
+  title?: T;
+  slug?: T;
+  theme?: T;
+  tags?: T;
+  status?: T;
+  summary?: T;
+  coverMedia?: T;
+  currentVersion?: T;
+  publishedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "story-versions_select".
+ */
+export interface StoryVersionsSelect<T extends boolean = true> {
+  story?: T;
+  version?: T;
+  displayTitle?: T;
+  status?: T;
+  title?: T;
+  subtitle?: T;
+  contentBlocks?:
+    | T
+    | {
+        richTextBlock?:
+          | T
+          | {
+              content?: T;
+              id?: T;
+              blockName?: T;
+            };
+        imageBlock?:
+          | T
+          | {
+              image?: T;
+              caption?: T;
+              id?: T;
+              blockName?: T;
+            };
+        videoBlock?:
+          | T
+          | {
+              videoURL?: T;
+              caption?: T;
+              id?: T;
+              blockName?: T;
+            };
+        quoteBlock?:
+          | T
+          | {
+              quote?: T;
+              author?: T;
+              id?: T;
+              blockName?: T;
+            };
+      };
+  changeNote?: T;
+  effectiveFrom?: T;
+  effectiveTo?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "insight-sets_select".
+ */
+export interface InsightSetsSelect<T extends boolean = true> {
+  name?: T;
+  slug?: T;
+  proposition?: T;
+  description?: T;
+  theme?: T;
+  status?: T;
+  currentVersion?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "insight-set-versions_select".
+ */
+export interface InsightSetVersionsSelect<T extends boolean = true> {
+  insightSet?: T;
+  version?: T;
+  displayTitle?: T;
+  status?: T;
+  introTitle?: T;
+  introSubtitle?: T;
+  resultMappingConfig?: T;
+  cardCount?: T;
+  changeNote?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "insight-cards_select".
+ */
+export interface InsightCardsSelect<T extends boolean = true> {
+  insightSetVersion?: T;
+  order?: T;
+  statement?: T;
+  hint?: T;
+  isActive?: T;
+  weight?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "insight-story-units_select".
+ */
+export interface InsightStoryUnitsSelect<T extends boolean = true> {
+  story?: T;
+  insightSet?: T;
+  status?: T;
+  note?: T;
+  displayTitle?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "unit-releases_select".
+ */
+export interface UnitReleasesSelect<T extends boolean = true> {
+  themeId?: T;
+  unit?: T;
+  storyVersion?: T;
+  insightSetVersion?: T;
+  status?: T;
+  startAt?: T;
+  endAt?: T;
+  audienceRule?: T;
+  trafficWeight?: T;
+  priority?: T;
+  channel?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "fingerprint-lexicon-releases_select".
+ */
+export interface FingerprintLexiconReleasesSelect<T extends boolean = true> {
+  version?: T;
+  status?: T;
+  locale?: T;
+  activeFrom?: T;
+  activeTo?: T;
+  firstWords?:
+    | T
+    | {
+        word?: T;
+        weight?: T;
+        enabled?: T;
+        id?: T;
+      };
+  secondWords?:
+    | T
+    | {
+        word?: T;
+        weight?: T;
+        enabled?: T;
+        id?: T;
+      };
+  bannedPairs?:
+    | T
+    | {
+        firstWord?: T;
+        secondWord?: T;
+        id?: T;
+      };
+  notes?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "insight-runs_select".
+ */
+export interface InsightRunsSelect<T extends boolean = true> {
+  runId?: T;
+  clientSessionId?: T;
+  flowVersion?: T;
+  themeId?: T;
+  themeName?: T;
+  themeSentence?: T;
+  storySlug?: T;
+  status?: T;
+  startedAt?: T;
+  completedAt?: T;
+  resultKey?: T;
+  fingerprintPhrase?: T;
+  fingerprintVersion?: T;
+  fingerprintKey?: T;
+  responseCount?: T;
+  responses?:
+    | T
+    | {
+        order?: T;
+        cardKey?: T;
+        statement?: T;
+        option?: T;
+        answeredAt?: T;
+        latencyMs?: T;
+        id?: T;
+      };
+  resultSnapshot?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "insight-attempts_select".
+ */
+export interface InsightAttemptsSelect<T extends boolean = true> {
+  release?: T;
+  user?: T;
+  sessionId?: T;
+  startedAt?: T;
+  completedAt?: T;
+  status?: T;
+  resultKey?: T;
+  resultSnapshot?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "insight-responses_select".
+ */
+export interface InsightResponsesSelect<T extends boolean = true> {
+  attempt?: T;
+  card?: T;
+  order?: T;
+  option?: T;
+  latencyMs?: T;
+  answeredAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-kv_select".
+ */
+export interface PayloadKvSelect<T extends boolean = true> {
+  key?: T;
+  data?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -423,7 +1132,7 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
  * via the `definition` "menu".
  */
 export interface Menu {
-  id: string;
+  id: number;
   globalText?: string | null;
   updatedAt?: string | null;
   createdAt?: string | null;
