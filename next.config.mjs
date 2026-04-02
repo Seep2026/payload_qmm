@@ -11,6 +11,8 @@ const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === 'true',
 })
 
+const shouldRedirectRootToAdmin = process.env.PAYLOAD_REDIRECT_ROOT_TO_ADMIN === 'true'
+
 const config = withBundleAnalyzer(
   withPayload(
     {
@@ -31,6 +33,10 @@ const config = withBundleAnalyzer(
         PAYLOAD_DO_NOT_SANITIZE_LOCALIZED_PROPERTY: 'true',
       },
       async redirects() {
+        if (!shouldRedirectRootToAdmin) {
+          return []
+        }
+
         return [
           {
             destination: '/admin',

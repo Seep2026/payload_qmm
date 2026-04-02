@@ -1,0 +1,796 @@
+:root {
+  --qmm-bg: #f9f7f4;
+  --qmm-surface: #f3efe8;
+  --qmm-border: #d1c9bc;
+  --qmm-border-soft: #e8e3dc;
+  --qmm-text: #2c2923;
+  --qmm-muted: #6b6760;
+  --qmm-subtle: #9b9086;
+  --qmm-button: #6b6760;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--qmm-bg);
+  color: var(--qmm-text);
+  font-family: 'Avenir Next', 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.qmm-page {
+  background: var(--qmm-bg);
+  min-height: 100vh;
+}
+
+.qmm-shell {
+  margin: 0 auto;
+  max-width: 1120px;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+.qmm-header {
+  background: var(--qmm-bg);
+  border-bottom: 1px solid var(--qmm-border-soft);
+}
+
+.qmm-header-inner {
+  align-items: center;
+  display: flex;
+  gap: 40px;
+  justify-content: flex-start;
+  min-height: 74px;
+  position: relative;
+}
+
+.qmm-brand {
+  color: var(--qmm-text);
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
+}
+
+.qmm-brand-logo {
+  display: block;
+  height: auto;
+  width: 104px;
+}
+
+.qmm-nav {
+  display: flex;
+  gap: 24px;
+}
+
+.qmm-nav a {
+  border-bottom: 1px solid transparent;
+  color: var(--qmm-subtle);
+  font-size: 15px;
+  padding-bottom: 4px;
+  transition: opacity 0.2s ease;
+}
+
+.qmm-nav a:hover {
+  opacity: 0.68;
+}
+
+.qmm-nav a.is-active {
+  border-color: var(--qmm-text);
+  color: var(--qmm-text);
+}
+
+.qmm-header-utility {
+  margin-left: auto;
+  position: relative;
+}
+
+.qmm-fingerprint-btn {
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--qmm-border);
+  border-radius: 999px;
+  color: var(--qmm-subtle);
+  cursor: pointer;
+  display: inline-flex;
+  height: 30px;
+  justify-content: center;
+  transition: border-color 0.2s ease, box-shadow 0.24s ease, color 0.2s ease;
+  width: 30px;
+}
+
+.qmm-fingerprint-btn:hover {
+  border-color: var(--qmm-muted);
+  color: var(--qmm-muted);
+}
+
+.qmm-fingerprint-btn.is-disabled {
+  border-color: #d7d2ca;
+  color: #c2b9ad;
+  cursor: default;
+}
+
+.qmm-fingerprint-btn.is-highlighted {
+  box-shadow: 0 0 0 4px rgba(155, 144, 134, 0.2);
+}
+
+.qmm-fingerprint-btn svg {
+  fill: none;
+  height: 13px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.4;
+  width: 13px;
+}
+
+.qmm-fingerprint-dropdown {
+  background: var(--qmm-bg);
+  border: 1px solid var(--qmm-border-soft);
+  border-radius: 16px;
+  box-shadow: 0 16px 28px rgba(21, 17, 12, 0.08);
+  min-width: 250px;
+  padding: 14px 14px 8px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  z-index: 20;
+}
+
+.qmm-fingerprint-dropdown h3 {
+  color: var(--qmm-muted);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  margin: 0 0 10px;
+  text-transform: uppercase;
+}
+
+.qmm-fingerprint-dropdown ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.qmm-fingerprint-dropdown li {
+  border-top: 1px solid var(--qmm-border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 0;
+}
+
+.qmm-fingerprint-dropdown li:first-child {
+  border-top: none;
+  padding-top: 2px;
+}
+
+.qmm-fingerprint-dropdown li span {
+  color: var(--qmm-muted);
+  font-size: 13px;
+}
+
+.qmm-fingerprint-dropdown li strong {
+  color: var(--qmm-text);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.qmm-fingerprint-empty {
+  color: var(--qmm-subtle);
+  font-size: 13px;
+  margin: 2px 0 8px;
+}
+
+.qmm-insight-area {
+  padding-bottom: 16px;
+  padding-top: 48px;
+}
+
+.qmm-experience {
+  position: relative;
+}
+
+.qmm-theme-veil {
+  animation: qmmThemeVeil 0.4s ease;
+  background: linear-gradient(
+    180deg,
+    rgba(243, 239, 232, 0) 0%,
+    rgba(243, 239, 232, 0.48) 42%,
+    rgba(243, 239, 232, 0.72) 54%,
+    rgba(243, 239, 232, 0) 100%
+  );
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 4;
+}
+
+.qmm-insight-topline {
+  color: var(--qmm-muted);
+  display: flex;
+  font-size: 14px;
+  gap: 18px;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.qmm-theme-trigger {
+  background: transparent;
+  border: none;
+  color: var(--qmm-muted);
+  cursor: pointer;
+  font-size: inherit;
+  line-height: 1.55;
+  margin: 0;
+  max-width: 78ch;
+  padding: 0;
+  text-align: left;
+  transition: color 0.2s ease;
+}
+
+.qmm-theme-trigger:hover:enabled {
+  color: var(--qmm-text);
+}
+
+.qmm-theme-trigger:disabled {
+  cursor: default;
+  opacity: 0.86;
+}
+
+.qmm-insight-progress {
+  align-self: flex-start;
+  color: var(--qmm-subtle);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.qmm-insight-card {
+  align-items: center;
+  background: var(--qmm-surface);
+  border: 1px solid var(--qmm-border);
+  border-radius: 30px;
+  display: flex;
+  justify-content: center;
+  min-height: 320px;
+  padding: 44px;
+  transition: transform 0.34s ease, opacity 0.34s ease;
+  will-change: transform, opacity;
+}
+
+.qmm-insight-card p {
+  color: var(--qmm-text);
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Times New Roman', serif;
+  font-size: clamp(24px, 2.8vw, 38px);
+  line-height: 1.35;
+  margin: 0;
+  max-width: 850px;
+  text-align: center;
+}
+
+.qmm-insight-card.is-enter {
+  opacity: 0;
+  transform: translateY(22px) scale(0.985);
+}
+
+.qmm-insight-card.is-exit-left {
+  opacity: 0;
+  transform: translate(-280px, -180px) rotate(-12deg) scale(0.92);
+}
+
+.qmm-insight-card.is-exit-up {
+  opacity: 0;
+  transform: translateY(-220px) scale(0.86);
+}
+
+.qmm-insight-card.is-exit-right {
+  opacity: 0;
+  transform: translate(280px, -180px) rotate(12deg) scale(0.92);
+}
+
+.qmm-response-wrap {
+  padding-top: 16px;
+}
+
+.qmm-response-grid {
+  align-items: center;
+  display: flex;
+  gap: clamp(10px, 2.2vw, 24px);
+  justify-content: center;
+}
+
+.qmm-response-btn {
+  align-items: center;
+  background: var(--qmm-button);
+  border: none;
+  border-radius: 999px;
+  color: #f9f7f4;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 16px;
+  height: clamp(72px, 11vw, 96px);
+  justify-content: center;
+  width: clamp(72px, 11vw, 96px);
+  flex-shrink: 0;
+  padding: 0 10px;
+  text-align: center;
+  touch-action: manipulation;
+  transition: opacity 0.2s ease;
+}
+
+.qmm-response-btn:hover:enabled {
+  opacity: 0.86;
+}
+
+.qmm-response-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.qmm-story-reveal {
+  padding-bottom: 56px;
+  padding-top: 34px;
+}
+
+.qmm-empty-note {
+  color: var(--qmm-subtle);
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+  text-align: center;
+}
+
+.qmm-story-toggle {
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--qmm-border);
+  border-radius: 999px;
+  color: var(--qmm-subtle);
+  cursor: pointer;
+  display: flex;
+  font-size: 14px;
+  gap: 8px;
+  margin: 0 auto;
+  padding: 10px 18px;
+}
+
+.qmm-inline-story {
+  animation: qmmFadeUp 0.36s ease;
+  margin: 42px auto 0;
+  max-width: 760px;
+}
+
+.qmm-inline-story h2 {
+  color: var(--qmm-text);
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Times New Roman', serif;
+  font-size: clamp(30px, 3.6vw, 46px);
+  margin: 0;
+  text-align: center;
+}
+
+.qmm-inline-story-tags {
+  color: var(--qmm-subtle);
+  font-size: 13px;
+  letter-spacing: 0.01em;
+  line-height: 1.5;
+  margin: 10px auto 14px;
+  max-width: 640px;
+  text-align: center;
+}
+
+.qmm-inline-story-subtitle {
+  color: var(--qmm-muted);
+  font-size: 19px;
+  margin: 14px auto 8px;
+  max-width: 620px;
+  text-align: center;
+}
+
+.qmm-inline-story-date {
+  color: var(--qmm-subtle);
+  font-size: 13px;
+  margin: 0 0 24px;
+  text-align: center;
+}
+
+.qmm-inline-story-content p {
+  color: var(--qmm-muted);
+  font-size: 19px;
+  line-height: 1.75;
+  margin: 0 0 18px;
+}
+
+.qmm-inline-story-link {
+  border-bottom: 1px solid var(--qmm-border);
+  color: var(--qmm-muted);
+  display: inline-block;
+  font-size: 14px;
+  margin-top: 10px;
+  padding-bottom: 4px;
+}
+
+.qmm-result-wrap {
+  display: flex;
+  justify-content: center;
+  max-width: 1120px;
+  padding-bottom: 54px;
+  padding-top: 62px;
+}
+
+.qmm-result-island {
+  max-width: 420px;
+  text-align: center;
+  width: 100%;
+}
+
+.qmm-result-wrap h1 {
+  color: var(--qmm-text);
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Times New Roman', serif;
+  font-size: clamp(24px, 2.6vw, 32px);
+  font-weight: 500;
+  line-height: 1.2;
+  margin: 0 0 12px;
+}
+
+.qmm-result-fingerprint-group {
+  margin-bottom: 14px;
+}
+
+.qmm-fingerprint-label {
+  color: var(--qmm-subtle);
+  font-size: 14px;
+  margin: 0 0 4px;
+}
+
+.qmm-fingerprint-value {
+  color: var(--qmm-text);
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Times New Roman', serif;
+  font-size: clamp(26px, 3.3vw, 35px);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.08;
+  margin: 0;
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
+}
+
+.qmm-result-bridge {
+  color: var(--qmm-muted);
+  font-size: 15px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.qmm-fingerprint-actions {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: center;
+  margin: 10px auto 0;
+  max-width: 220px;
+  width: 100%;
+}
+
+.qmm-result-primary-btn {
+  background: #8e8378;
+  border: none;
+  border-radius: 999px;
+  color: #f9f7f4;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  min-height: 44px;
+  width: 100%;
+}
+
+.qmm-result-secondary-btn {
+  background: transparent;
+  border: 1px solid var(--qmm-border);
+  border-radius: 999px;
+  color: var(--qmm-subtle);
+  cursor: pointer;
+  font-size: 14px;
+  min-height: 40px;
+  width: 100%;
+}
+
+.qmm-stories-page {
+  padding-bottom: 64px;
+  padding-top: 54px;
+}
+
+.qmm-stories-head h1 {
+  color: var(--qmm-text);
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Times New Roman', serif;
+  font-size: clamp(44px, 5vw, 62px);
+  margin: 0;
+}
+
+.qmm-stories-head p {
+  color: var(--qmm-muted);
+  font-size: 20px;
+  line-height: 1.6;
+  margin: 14px 0 42px;
+  max-width: 760px;
+}
+
+.qmm-stories-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.qmm-article-card {
+  background: var(--qmm-surface);
+  border: 1px solid var(--qmm-border);
+  border-radius: 20px;
+  display: block;
+  padding: 24px;
+  transition: transform 0.24s ease, box-shadow 0.24s ease;
+}
+
+.qmm-article-card:hover {
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.05);
+  transform: translateY(-2px);
+}
+
+.qmm-article-card h3 {
+  color: var(--qmm-text);
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Times New Roman', serif;
+  font-size: clamp(25px, 2.3vw, 34px);
+  margin: 0;
+}
+
+.qmm-article-date {
+  color: var(--qmm-subtle);
+  font-size: 12px;
+  margin: 8px 0 12px;
+}
+
+.qmm-article-excerpt {
+  color: var(--qmm-muted);
+  font-size: 17px;
+  line-height: 1.7;
+  margin: 0;
+}
+
+.qmm-article-link {
+  color: var(--qmm-subtle);
+  display: inline-block;
+  font-size: 14px;
+  margin-top: 14px;
+}
+
+.qmm-story-detail {
+  max-width: 860px;
+  padding-bottom: 80px;
+  padding-top: 58px;
+}
+
+.qmm-story-detail h1 {
+  color: var(--qmm-text);
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Times New Roman', serif;
+  font-size: clamp(40px, 4.4vw, 64px);
+  line-height: 1.15;
+  margin: 0;
+}
+
+.qmm-story-subtitle {
+  color: var(--qmm-muted);
+  font-size: 22px;
+  margin: 14px 0 0;
+}
+
+.qmm-story-date {
+  color: var(--qmm-subtle);
+  font-size: 12px;
+  margin-top: 10px;
+}
+
+.qmm-story-content {
+  margin-top: 34px;
+}
+
+.qmm-story-content p {
+  color: var(--qmm-muted);
+  font-size: 21px;
+  line-height: 1.82;
+  margin: 0 0 18px;
+}
+
+.qmm-story-back {
+  border-top: 1px solid var(--qmm-border-soft);
+  margin-top: 40px;
+  padding-top: 24px;
+}
+
+.qmm-story-back a {
+  border: 1px solid var(--qmm-border);
+  border-radius: 999px;
+  color: var(--qmm-muted);
+  display: inline-block;
+  font-size: 14px;
+  padding: 10px 16px;
+}
+
+.qmm-footer {
+  border-top: 1px solid var(--qmm-border-soft);
+  margin-top: 22px;
+}
+
+.qmm-footer-inner {
+  align-items: center;
+  color: var(--qmm-subtle);
+  display: flex;
+  font-size: 13px;
+  justify-content: space-between;
+  min-height: 72px;
+}
+
+.qmm-footer-inner a {
+  color: inherit;
+}
+
+
+@keyframes qmmFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes qmmThemeVeil {
+  0% {
+    opacity: 0;
+    transform: translateY(-22%);
+  }
+
+  25% {
+    opacity: 0.48;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(22%);
+  }
+}
+
+@media (max-width: 900px) {
+  .qmm-shell {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .qmm-header-inner {
+    gap: 18px;
+    min-height: 64px;
+  }
+
+  .qmm-brand {
+    margin-right: 2px;
+  }
+
+  .qmm-brand-logo {
+    width: 90px;
+  }
+
+  .qmm-nav {
+    gap: 16px;
+  }
+
+  .qmm-fingerprint-btn {
+    height: 27px;
+    width: 27px;
+  }
+
+  .qmm-fingerprint-btn svg {
+    height: 12px;
+    width: 12px;
+  }
+
+  .qmm-fingerprint-dropdown {
+    min-width: 230px;
+    right: -2px;
+  }
+
+  .qmm-insight-area {
+    padding-top: 30px;
+  }
+
+  .qmm-insight-card {
+    border-radius: 24px;
+    min-height: 260px;
+    padding: 28px 20px;
+  }
+
+  .qmm-response-grid {
+    gap: clamp(10px, 3.6vw, 14px);
+  }
+
+  .qmm-response-btn {
+    font-size: 14px;
+    height: clamp(64px, 21vw, 80px);
+    width: clamp(64px, 21vw, 80px);
+    padding: 0 8px;
+  }
+
+  .qmm-inline-story-content p,
+  .qmm-story-content p {
+    font-size: 17px;
+  }
+
+  .qmm-stories-head p {
+    font-size: 17px;
+    margin-bottom: 28px;
+  }
+
+  .qmm-story-subtitle {
+    font-size: 18px;
+  }
+
+  .qmm-result-wrap {
+    padding-bottom: 38px;
+    padding-top: 40px;
+  }
+
+  .qmm-result-island {
+    max-width: 340px;
+  }
+
+  .qmm-result-wrap h1 {
+    font-size: clamp(23px, 7.2vw, 29px);
+    margin-bottom: 10px;
+  }
+
+  .qmm-result-fingerprint-group {
+    margin-bottom: 12px;
+  }
+
+  .qmm-fingerprint-label {
+    font-size: 13px;
+    margin-bottom: 4px;
+  }
+
+  .qmm-fingerprint-value {
+    font-size: clamp(24px, 7.8vw, 31px);
+    white-space: nowrap;
+    word-break: keep-all;
+    overflow-wrap: normal;
+  }
+
+  .qmm-result-bridge {
+    font-size: 14px;
+  }
+
+  .qmm-fingerprint-actions {
+    margin-top: 10px;
+    max-width: 200px;
+  }
+
+  .qmm-result-primary-btn {
+    min-height: 42px;
+  }
+
+  .qmm-result-secondary-btn {
+    min-height: 38px;
+  }
+
+  .qmm-footer-inner {
+    min-height: 64px;
+  }
+
+}
