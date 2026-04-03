@@ -4,6 +4,7 @@ import { generateDatabaseAdapter } from '../../../test/generateDatabaseAdapter.j
 
 const getConfig = async () => {
   process.env.SQLITE_URL = process.env.SQLITE_URL || 'file:./payload-qmm.db'
+  process.env.QMM_SKIP_BOOTSTRAP_ON_INIT = 'true'
   generateDatabaseAdapter('sqlite')
   const module = await import('../../../test/_community/config.js')
   return module.default

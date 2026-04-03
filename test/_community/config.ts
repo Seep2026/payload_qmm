@@ -41,6 +41,13 @@ export default buildConfigWithDefaults({
     MenuGlobal,
   ],
   onInit: async (payload) => {
+    if (process.env.QMM_SKIP_BOOTSTRAP_ON_INIT === 'true') {
+      payload.logger.info({
+        msg: '[qmm] Skipping _community bootstrap onInit for DB management script.',
+      })
+      return
+    }
+
     const users = await payload.find({
       collection: 'users',
       limit: 1,
