@@ -25,15 +25,16 @@ export const allDatabaseAdapters = {
   // mongodb-atlas uses Docker-based MongoDB Atlas Local (all-in-one with search)
   // Start with: pnpm docker:mongodb-atlas:start
   // Runs on port 27019 to avoid conflicts with mongodb
-  'mongodb-atlas': `
-  import { mongooseAdapter } from '@payloadcms/db-mongodb'
-
-  export const databaseAdapter = mongooseAdapter({
-    ensureIndexes: true,
-    url:
-        process.env.MONGODB_ATLAS_URL || process.env.DATABASE_URL ||
-      'mongodb://localhost:27019/payload?directConnection=true&replicaSet=mongodb-atlas-local',
-  })`,
+  'content-api': `
+import { contentAPIAdapter } from '@payloadcms/figma'
+export const databaseAdapter = contentAPIAdapter({
+  auth: {
+    mode: 'devJwt',
+  },
+  url: process.env.CONTENT_API_URL || 'http://localhost:8080',
+  contentSystemId: process.env.CONTENT_SYSTEM_ID || '00000000-0000-4000-8000-000000000001',
+})
+  `,
   cosmosdb: `
   import { mongooseAdapter, compatibilityOptions } from '@payloadcms/db-mongodb'
 
@@ -41,6 +42,11 @@ export const allDatabaseAdapters = {
     ...compatibilityOptions.cosmosdb,
     ${mongooseAdapterArgs}
   })`,
+  d1: `
+import { sqliteD1Adapter } from '@payloadcms/db-d1-sqlite'
+
+export const databaseAdapter = sqliteD1Adapter({ binding: global.d1 })
+  `,
   documentdb: `
   import { mongooseAdapter, compatibilityOptions } from '@payloadcms/db-mongodb'
 
@@ -60,6 +66,15 @@ export const allDatabaseAdapters = {
     disableIndexHints: false,
     useAlternativeDropDatabase: false,
   })`,
+  'mongodb-atlas': `
+  import { mongooseAdapter } from '@payloadcms/db-mongodb'
+
+  export const databaseAdapter = mongooseAdapter({
+    ensureIndexes: true,
+    url:
+        process.env.MONGODB_ATLAS_URL || process.env.DATABASE_URL ||
+      'mongodb://localhost:27019/payload?directConnection=true&replicaSet=mongodb-atlas-local',
+  })`,
   postgres: `
   import { postgresAdapter } from '@payloadcms/db-postgres'
 
@@ -77,15 +92,6 @@ export const allDatabaseAdapters = {
     },
     schemaName: 'custom',
   })`,
-  'postgres-uuid': `
-    import { postgresAdapter } from '@payloadcms/db-postgres'
-
-  export const databaseAdapter = postgresAdapter({
-    idType: 'uuid',
-    pool: {
-      connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL || '${defaultPostgresUrl}',
-    },
-  })`,
   'postgres-read-replica': `
   import { postgresAdapter } from '@payloadcms/db-postgres'
 
@@ -96,43 +102,74 @@ export const allDatabaseAdapters = {
     readReplicas: [process.env.POSTGRES_REPLICA_URL],
   })
         `,
-  'content-api': `
-import { contentAPIAdapter } from '@payloadcms/figma'
-export const databaseAdapter = contentAPIAdapter({
-  auth: {
-    mode: 'devJwt',
-  },
-  url: process.env.CONTENT_API_URL || 'http://localhost:8080',
-  contentSystemId: process.env.CONTENT_SYSTEM_ID || '00000000-0000-4000-8000-000000000001',
-})
-  `,
-  'vercel-postgres-read-replica': `
-  import { vercelPostgresAdapter } from '@payloadcms/db-vercel-postgres'
+  'postgres-uuid': `
+    import { postgresAdapter } from '@payloadcms/db-postgres'
 
-  export const databaseAdapter = vercelPostgresAdapter({
+  export const databaseAdapter = postgresAdapter({
+    idType: 'uuid',
     pool: {
-      connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
+      connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL || '${defaultPostgresUrl}',
     },
-    readReplicas: [process.env.POSTGRES_REPLICA_URL],
-  })
-  `,
+  })`,
   sqlite: `
   import { sqliteAdapter } from '@payloadcms/db-sqlite'
+
+  const parseIntOr = (value, fallback) => {
+    const parsed = Number.parseInt(value || '', 10)
+    return Number.isFinite(parsed) ? parsed : fallback
+  }
+
+  const resolveSynchronous = () => {
+    const value = (process.env.SQLITE_WAL_SYNCHRONOUS || '').toUpperCase()
+    if (value === 'OFF' || value === 'EXTRA' || value === 'FULL' || value === 'NORMAL') {
+      return value
+    }
+    return 'NORMAL'
+  }
 
   export const databaseAdapter = sqliteAdapter({
     client: {
       url: process.env.SQLITE_URL || process.env.DATABASE_URL || 'file:./payload.db',
     },
-    autoIncrement: true
+    autoIncrement: true,
+    busyTimeout: parseIntOr(process.env.SQLITE_BUSY_TIMEOUT, 5000),
+    wal:
+      process.env.SQLITE_WAL === 'false'
+        ? false
+        : {
+            journalSizeLimit: parseIntOr(process.env.SQLITE_WAL_JOURNAL_SIZE_LIMIT, 67108864),
+            synchronous: resolveSynchronous(),
+          },
   })`,
   'sqlite-uuid': `
   import { sqliteAdapter } from '@payloadcms/db-sqlite'
+
+  const parseIntOr = (value, fallback) => {
+    const parsed = Number.parseInt(value || '', 10)
+    return Number.isFinite(parsed) ? parsed : fallback
+  }
+
+  const resolveSynchronous = () => {
+    const value = (process.env.SQLITE_WAL_SYNCHRONOUS || '').toUpperCase()
+    if (value === 'OFF' || value === 'EXTRA' || value === 'FULL' || value === 'NORMAL') {
+      return value
+    }
+    return 'NORMAL'
+  }
 
   export const databaseAdapter = sqliteAdapter({
     idType: 'uuid',
     client: {
       url: process.env.SQLITE_URL || process.env.DATABASE_URL || 'file:./payload.db',
-    }
+    },
+    busyTimeout: parseIntOr(process.env.SQLITE_BUSY_TIMEOUT, 5000),
+    wal:
+      process.env.SQLITE_WAL === 'false'
+        ? false
+        : {
+            journalSizeLimit: parseIntOr(process.env.SQLITE_WAL_JOURNAL_SIZE_LIMIT, 67108864),
+            synchronous: resolveSynchronous(),
+          },
   })`,
   supabase: `
   import { postgresAdapter } from '@payloadcms/db-postgres'
@@ -143,10 +180,15 @@ export const databaseAdapter = contentAPIAdapter({
         process.env.POSTGRES_URL || process.env.DATABASE_URL || 'postgresql://postgres:postgres@127.0.0.1:54322/postgres',
     },
   })`,
-  d1: `
-import { sqliteD1Adapter } from '@payloadcms/db-d1-sqlite'
+  'vercel-postgres-read-replica': `
+  import { vercelPostgresAdapter } from '@payloadcms/db-vercel-postgres'
 
-export const databaseAdapter = sqliteD1Adapter({ binding: global.d1 })
+  export const databaseAdapter = vercelPostgresAdapter({
+    pool: {
+      connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
+    },
+    readReplicas: [process.env.POSTGRES_REPLICA_URL],
+  })
   `,
 }
 

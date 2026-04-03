@@ -15,9 +15,11 @@ export const getPayloadHMR = async (
 ): Promise<Payload> => {
   const result = await getPayload(options)
 
-  result.logger.warn(
-    "Deprecation warning: getPayloadHMR is no longer preferred. You can now use `import { getPayload } from 'payload' in all contexts.",
-  )
+  if (process.env.PAYLOAD_LOG_DEPRECATED_HMR === 'true') {
+    result.logger.warn(
+      "Deprecation warning: getPayloadHMR is no longer preferred. You can now use `import { getPayload } from 'payload' in all contexts.",
+    )
+  }
 
   return result
 }

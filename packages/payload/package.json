@@ -90,6 +90,7 @@
     "build:debug": "pnpm build",
     "build:swc": "swc ./src -d ./dist --config-file .swcrc --strip-leading-paths",
     "build:types": "tsc --emitDeclarationOnly --outDir dist",
+    "build:vps": "rimraf .dist && rimraf tsconfig.tsbuildinfo && pnpm copyfiles && pnpm build:swc && echo skipping build:types && echo skipping bundle:types && echo skipping esbuild",
     "bundle:types": "rollup -c rollup.dts.config.mjs",
     "clean": "rimraf -g {dist,*.tsbuildinfo}",
     "clean:cache": "rimraf node_modules/.cache",

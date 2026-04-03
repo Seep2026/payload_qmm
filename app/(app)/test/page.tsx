@@ -1,8 +1,8 @@
 import configPromise from '@payload-config'
-import { getPayload } from 'payload'
+import { getPayloadHMR } from '@payloadcms/next/utilities'
 
 export const Page = async ({ params, searchParams }) => {
-  const payload = await getPayload({
+  const payload = await getPayloadHMR({
     config: configPromise,
   })
   return <div>test ${payload?.config?.collections?.length}</div>

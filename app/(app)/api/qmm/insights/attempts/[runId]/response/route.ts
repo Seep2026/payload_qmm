@@ -2,9 +2,9 @@ import {
   findRunByRunID,
   getPayloadClient,
   INSIGHT_RUNS_COLLECTION,
+  type InsightRunResponseItem,
   isInsightOptionValue,
   parseJSONBody,
-  type InsightRunResponseItem,
 } from '../../../_shared'
 
 type SaveResponseBody = {
@@ -16,40 +16,56 @@ type SaveResponseBody = {
   statement?: string
 }
 
+type StoredResponseItem = {
+  id?: number | string
+} & InsightRunResponseItem
+
 const normalizeText = (value: unknown): string => (typeof value === 'string' ? value.trim() : '')
 
 const getParamRunID = async (context: {
-  params: Promise<{ runId: string }> | { runId: string }
+  params: { runId: string } | Promise<{ runId: string }>
 }): Promise<string> => {
   const params = await Promise.resolve(context.params)
   return normalizeText(params.runId)
 }
 
-const normalizeResponses = (value: unknown): InsightRunResponseItem[] => {
+const normalizeResponses = (value: unknown): StoredResponseItem[] => {
   if (!Array.isArray(value)) {
     return []
   }
 
   return value
-    .filter((item): item is InsightRunResponseItem => {
+    .map((item): null | StoredResponseItem => {
       if (!item || typeof item !== 'object') {
-        return false
+        return null
       }
 
       const record = item as Record<string, unknown>
+      if (
+        typeof record.order !== 'number' ||
+        typeof record.answeredAt !== 'string' ||
+        !isInsightOptionValue(record.option)
+      ) {
+        return null
+      }
 
-      return (
-        typeof record.order === 'number' &&
-        typeof record.answeredAt === 'string' &&
-        isInsightOptionValue(record.option)
-      )
+      return {
+        id: typeof record.id === 'number' || typeof record.id === 'string' ? record.id : undefined,
+        answeredAt: record.answeredAt,
+        cardKey: normalizeText(record.cardKey) || undefined,
+        latencyMs: typeof record.latencyMs === 'number' ? record.latencyMs : undefined,
+        option: record.option,
+        order: record.order,
+        statement: normalizeText(record.statement) || undefined,
+      }
     })
+    .filter((item): item is StoredResponseItem => Boolean(item))
     .sort((a, b) => a.order - b.order)
 }
 
 export const POST = async (
   request: Request,
-  context: { params: Promise<{ runId: string }> | { runId: string } },
+  context: { params: { runId: string } | Promise<{ runId: string }> },
 ) => {
   const runId = await getParamRunID(context)
 
@@ -105,17 +121,21 @@ export const POST = async (
   const withoutCurrentOrder = existingResponses.filter((item) => item.order !== order)
   const nextResponses = [...withoutCurrentOrder, nextItem].sort((a, b) => a.order - b.order)
 
-  // Workaround: Clear responses first to avoid primary key conflicts
-  await payload.update({
-    id: run.id,
-    collection: INSIGHT_RUNS_COLLECTION as never,
-    data: {
-      responses: [],
-    },
-    depth: 0,
-  } as never)
+  const existingAtOrder = existingResponses.find((item) => item.order === order)
+  const isNoopUpdate =
+    existingAtOrder &&
+    existingAtOrder.option === nextItem.option &&
+    normalizeText(existingAtOrder.cardKey) === normalizeText(nextItem.cardKey) &&
+    normalizeText(existingAtOrder.statement) === normalizeText(nextItem.statement)
 
-  // Then update with new responses
+  if (isNoopUpdate) {
+    return Response.json({
+      ok: true,
+      responseCount: existingResponses.length,
+      runId,
+    })
+  }
+
   await payload.update({
     id: run.id,
     collection: INSIGHT_RUNS_COLLECTION as never,

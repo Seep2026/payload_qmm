@@ -3,7 +3,7 @@ import { SiteHeader } from '../components/site/SiteHeader'
 import { ArticleCard } from '../components/stories/ArticleCard'
 import { getPublishedStories } from '../server/qmmContent'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 120
 
 export default async function StoriesPage() {
   const articles = await getPublishedStories()

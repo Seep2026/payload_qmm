@@ -24,8 +24,11 @@ export const CopyToClipboard: React.FC<Props> = ({ defaultMessage, successMessag
       <button
         className={baseClass}
         onClick={async () => {
-          await navigator.clipboard.writeText(value)
-          setCopied(true)
+          const copiedToClipboard = await copyText(value)
+
+          if (copiedToClipboard) {
+            setCopied(true)
+          }
         }}
         onMouseEnter={() => {
           setHovered(true)
@@ -47,4 +50,35 @@ export const CopyToClipboard: React.FC<Props> = ({ defaultMessage, successMessag
   }
 
   return null
+}
+
+const copyText = async (value: string): Promise<boolean> => {
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(value)
+      return true
+    } catch {
+      // Fall back to document.execCommand for environments without clipboard permissions.
+    }
+  }
+
+  if (typeof document === 'undefined') {
+    return false
+  }
+
+  const textArea = document.createElement('textarea')
+  textArea.value = value
+  textArea.setAttribute('readonly', '')
+  textArea.style.position = 'fixed'
+  textArea.style.left = '-9999px'
+  document.body.append(textArea)
+  textArea.select()
+
+  try {
+    return document.execCommand('copy')
+  } catch {
+    return false
+  } finally {
+    textArea.remove()
+  }
 }

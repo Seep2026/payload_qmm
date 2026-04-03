@@ -56,7 +56,18 @@ export const createRunID = (): string => {
   return `run_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
 }
 
-export const getPayloadClient = async () => await getPayloadHMR({ config })
+let payloadClientPromise: null | Promise<Awaited<ReturnType<typeof getPayloadHMR>>> = null
+
+export const getPayloadClient = async () => {
+  if (!payloadClientPromise) {
+    payloadClientPromise = getPayloadHMR({ config }).catch((error) => {
+      payloadClientPromise = null
+      throw error
+    })
+  }
+
+  return await payloadClientPromise
+}
 
 export const findRunByRunID = async (
   payload: Awaited<ReturnType<typeof getPayloadClient>>,

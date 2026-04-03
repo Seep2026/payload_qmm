@@ -5,7 +5,7 @@ import { SiteFooter } from '../../components/site/SiteFooter'
 import { SiteHeader } from '../../components/site/SiteHeader'
 import { getPublishedStoryBySlug } from '../../server/qmmContent'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 120
 
 type StoryDetailPageProps = {
   params: Promise<{

@@ -4,6 +4,17 @@ import { getPayloadHMR } from '@payloadcms/next/utilities'
 import type { InsightExperienceUnit, StoryArticle } from '../types/qmmContent'
 
 type GenericDoc = Record<string, unknown>
+type RelationID = number | string
+type ReleaseCandidate = {
+  insightSet: GenericDoc
+  insightSetVersion: GenericDoc
+  insightSetVersionID: RelationID
+  release: GenericDoc
+  story: GenericDoc
+  storySlug: string
+  storyVersion: GenericDoc | null
+  unit: GenericDoc
+}
 
 const toRecord = (value: unknown): GenericDoc | null =>
   value && typeof value === 'object' ? (value as GenericDoc) : null
@@ -55,6 +66,19 @@ const relationToID = (value: unknown): null | number | string => {
 
   const candidate = relation.id
   return typeof candidate === 'number' || typeof candidate === 'string' ? candidate : null
+}
+
+const asNumber = (value: unknown): number => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+
+  return 0
 }
 
 const formatDate = (value: unknown): string => {
@@ -198,8 +222,21 @@ const isReleaseActiveNow = (releaseDoc: GenericDoc, now: Date): boolean => {
   return true
 }
 
+let payloadClientPromise: null | Promise<Awaited<ReturnType<typeof getPayloadHMR>>> = null
+
+const getPayloadClient = async () => {
+  if (!payloadClientPromise) {
+    payloadClientPromise = getPayloadHMR({ config: configPromise }).catch((error) => {
+      payloadClientPromise = null
+      throw error
+    })
+  }
+
+  return await payloadClientPromise
+}
+
 export const getPublishedStories = async (): Promise<StoryArticle[]> => {
-  const payload = await getPayloadHMR({ config: configPromise })
+  const payload = await getPayloadClient()
   const result = await payload.find({
     collection: 'stories',
     depth: 2,
@@ -223,7 +260,7 @@ export const getPublishedStoryBySlug = async (slug: string): Promise<null | Stor
     return null
   }
 
-  const payload = await getPayloadHMR({ config: configPromise })
+  const payload = await getPayloadClient()
   const result = await payload.find({
     collection: 'stories',
     depth: 2,
@@ -253,10 +290,10 @@ export const getPublishedStoryBySlug = async (slug: string): Promise<null | Stor
 }
 
 export const getActiveInsightExperienceUnits = async (): Promise<InsightExperienceUnit[]> => {
-  const payload = await getPayloadHMR({ config: configPromise })
+  const payload = await getPayloadClient()
   const releases = await payload.find({
     collection: 'unit-releases',
-    depth: 3,
+    depth: 2,
     limit: 50,
     sort: '-priority',
     where: {
@@ -275,28 +312,12 @@ export const getActiveInsightExperienceUnits = async (): Promise<InsightExperien
     },
   })
 
-  console.log('[DEBUG] Found releases:', releases.docs.length)
-
   const now = new Date()
-  const units: InsightExperienceUnit[] = []
+  const releaseCandidates: ReleaseCandidate[] = []
 
   for (const rawDoc of releases.docs) {
-    console.log('[DEBUG] Processing release:', rawDoc.id)
     const release = (rawDoc || {}) as GenericDoc
-    const isActive = isReleaseActiveNow(release, now)
-    console.log(
-      '[DEBUG] Release',
-      rawDoc.id,
-      'isActiveNow:',
-      isActive,
-      'startAt:',
-      release.startAt,
-      'endAt:',
-      release.endAt,
-      'now:',
-      now,
-    )
-    if (!isActive) {
+    if (!isReleaseActiveNow(release, now)) {
       continue
     }
 
@@ -307,13 +328,10 @@ export const getActiveInsightExperienceUnits = async (): Promise<InsightExperien
     const insightSetVersion = toRecord(release.insightSetVersion)
 
     if (!story || !insightSet || !insightSetVersion) {
-      console.log('[DEBUG] Missing story/insightSet/insightSetVersion')
       continue
     }
 
-    const storyStatus = asText(story.status)
-    console.log('[DEBUG] Story status:', storyStatus)
-    if (storyStatus !== 'published') {
+    if (asText(story.status) !== 'published') {
       continue
     }
 
@@ -324,70 +342,113 @@ export const getActiveInsightExperienceUnits = async (): Promise<InsightExperien
       continue
     }
 
-    const cards = await payload.find({
-      collection: 'insight-cards',
-      depth: 0,
-      limit: 200,
-      sort: 'order',
-      where: {
-        and: [
-          {
-            insightSetVersion: {
-              equals: insightSetVersionID,
-            },
-          },
-          {
-            isActive: {
-              equals: true,
-            },
-          },
-        ],
-      },
-    })
-
-    console.log(
-      '[DEBUG] Found cards:',
-      cards.docs.length,
-      'for insightSetVersion:',
+    releaseCandidates.push({
+      insightSet,
+      insightSetVersion,
       insightSetVersionID,
-    )
+      release,
+      story,
+      storySlug,
+      storyVersion,
+      unit,
+    })
+  }
 
-    const statements = cards.docs
-      .map((card) => {
-        const stmt = (card as GenericDoc).statement
-        const text = asText(stmt)
-        console.log('[DEBUG] Card statement:', JSON.stringify(stmt), '-> extracted:', text)
-        return text
-      })
+  if (!releaseCandidates.length) {
+    return []
+  }
+
+  const versionIDByKey = new Map<string, RelationID>()
+  for (const candidate of releaseCandidates) {
+    versionIDByKey.set(String(candidate.insightSetVersionID), candidate.insightSetVersionID)
+  }
+
+  const cards = await payload.find({
+    collection: 'insight-cards',
+    depth: 0,
+    limit: 1000,
+    sort: 'order',
+    where: {
+      and: [
+        {
+          insightSetVersion: {
+            in: Array.from(versionIDByKey.values()),
+          },
+        },
+        {
+          isActive: {
+            equals: true,
+          },
+        },
+      ],
+    },
+  })
+
+  const statementsByVersion = new Map<string, string[]>()
+  const groupedRows = new Map<string, Array<{ order: number; text: string }>>()
+
+  for (const rawCard of cards.docs) {
+    const card = (rawCard || {}) as GenericDoc
+    const versionID = relationToID(card.insightSetVersion)
+    if (!versionID) {
+      continue
+    }
+
+    const text = asText(card.statement)
+    if (!text) {
+      continue
+    }
+
+    const key = String(versionID)
+    const rows = groupedRows.get(key) || []
+    rows.push({
+      order: asNumber(card.order),
+      text,
+    })
+    groupedRows.set(key, rows)
+  }
+
+  for (const [key, rows] of groupedRows.entries()) {
+    const statements = rows
+      .sort((a, b) => a.order - b.order)
+      .map((row) => row.text)
       .filter(Boolean)
 
-    console.log('[DEBUG] Extracted statements:', statements.length)
+    statementsByVersion.set(key, statements)
+  }
 
+  const units: InsightExperienceUnit[] = []
+
+  for (const candidate of releaseCandidates) {
+    const statements = statementsByVersion.get(String(candidate.insightSetVersionID)) || []
     if (!statements.length) {
       continue
     }
 
-    const mappedStory = mapStoryArticle(story, storyVersion)
+    const mappedStory = mapStoryArticle(candidate.story, candidate.storyVersion)
     if (!mappedStory) {
       continue
     }
 
     const themeSentence =
-      asText(insightSet.proposition) ||
-      asText(insightSetVersion.introSubtitle) ||
-      asText(insightSetVersion.introTitle) ||
+      asText(candidate.insightSet.proposition) ||
+      asText(candidate.insightSetVersion.introSubtitle) ||
+      asText(candidate.insightSetVersion.introTitle) ||
       'A quiet reflection space.'
 
-    const releaseKey = relationToID(release.id) || relationToID(unit.id) || storySlug
-    const themeID = relationToID(insightSet.id) || asText(insightSet.slug) || storySlug
+    const releaseKey = relationToID(candidate.release.id) || relationToID(candidate.unit.id)
+    const themeID =
+      relationToID(candidate.insightSet.id) ||
+      asText(candidate.insightSet.slug) ||
+      candidate.storySlug
 
     units.push({
-      key: String(releaseKey),
+      key: String(releaseKey || candidate.storySlug),
       statements,
       story: mappedStory,
-      storySlug,
+      storySlug: candidate.storySlug,
       themeId: String(themeID),
-      themeName: asText(insightSet.name) || asText(insightSet.slug) || 'Theme',
+      themeName: asText(candidate.insightSet.name) || asText(candidate.insightSet.slug) || 'Theme',
       themeSentence,
     })
   }

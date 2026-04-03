@@ -21,7 +21,6 @@ const config = withBundleAnalyzer(
         ignoreBuildErrors: true,
       },
       experimental: {
-        fullySpecified: true,
         serverActions: {
           bodySizeLimit: '5mb',
         },

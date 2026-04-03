@@ -119,27 +119,33 @@ export const InsightsExperience = ({ initialUnits }: InsightsExperienceProps) =>
     return await nextPromise
   }
 
-  const handleResponse = async (option: InsightOption) => {
+  const handleResponse = (option: InsightOption) => {
     if (isAnimating || isThemeSwitching || !total) {
       return
     }
 
-    const runIdForWrite = await ensureActiveRunId()
+    const runIdPromise = ensureActiveRunId()
     const nextResponses = [...responseHistory, option]
     const answerOrder = nextResponses.length
     const answeredAt = new Date().toISOString()
     const latencyMs = Math.max(0, Date.now() - questionShownAtRef.current)
 
-    if (runIdForWrite) {
-      void saveInsightResponse(runIdForWrite, {
-        answeredAt,
-        cardKey: `${activeTheme.key}:${currentIndex + 1}`,
-        latencyMs,
-        option,
-        order: answerOrder,
-        statement: currentStatement,
+    void runIdPromise
+      .then((runIdForWrite) => {
+        if (!runIdForWrite) {
+          return
+        }
+
+        return saveInsightResponse(runIdForWrite, {
+          answeredAt,
+          cardKey: `${activeTheme.key}:${currentIndex + 1}`,
+          latencyMs,
+          option,
+          order: answerOrder,
+          statement: currentStatement,
+        })
       })
-    }
+      .catch(() => undefined)
 
     setResponseHistory(nextResponses)
     setIsAnimating(true)
@@ -160,8 +166,10 @@ export const InsightsExperience = ({ initialUnits }: InsightsExperienceProps) =>
           version: 'fp_local_fallback_v1',
         })
 
-        if (runIdForWrite) {
-          const completedRun = await completeInsightRun(runIdForWrite, {
+        const runIdForComplete = await runIdPromise.catch(() => null)
+
+        if (runIdForComplete) {
+          const completedRun = await completeInsightRun(runIdForComplete, {
             completedAt: new Date().toISOString(),
             resultKey,
             resultSnapshot: {
