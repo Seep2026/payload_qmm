@@ -2,6 +2,10 @@
 
 This runbook is for low-spec VPS deployment of the current QMM web app.
 
+For reusable deployment scripts and post-update rebuild flow, see:
+
+- `docs/runbook/qmm-vps-deploy-reuse.md`
+
 ## 1) What was optimized in code
 
 - Removed forced dynamic rendering for key content pages:
