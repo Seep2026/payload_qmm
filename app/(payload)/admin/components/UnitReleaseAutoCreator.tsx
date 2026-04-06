@@ -1,470 +1,421 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
-import { useConfig } from '@payloadcms/ui/providers/Config'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useForm } from '@payloadcms/ui/forms/Form'
-import { SelectInput } from '@payloadcms/ui/fields/Select'
-import { DateTimeInput } from '@payloadcms/ui/fields/DateTime'
-import { NumberInput } from '@payloadcms/ui/fields/Number'
-import { TextInput } from '@payloadcms/ui/fields/Text'
-import { CheckboxInput } from '@payloadcms/ui/fields/Checkbox'
 
-// This component provides a simplified Unit Release creation experience
-// User only needs to select a Theme, and the system auto-fills everything else
+type ThemeOption = {
+  id: number | string
+  label: string
+}
+
+type PreviewResolution = {
+  insightSet: {
+    id: number | string | null
+    name: string
+    slug: string
+    status: string
+  }
+  insightSetVersion: {
+    displayTitle: string
+    id: number | string | null
+    status: string
+    version: string
+  }
+  mode: string
+  story: {
+    id: number | string | null
+    slug: string
+    status: string
+    title: string
+  }
+  storyVersion: {
+    displayTitle: string
+    id: number | string | null
+    status: string
+    version: string
+  }
+  theme: {
+    id: number | string | null
+    name: string
+    slug: string
+    status: string
+  }
+  unit: {
+    displayTitle: string
+    id: number | string | null
+    status: string
+  }
+  warnings: string[]
+}
+
+type PreviewPayload = {
+  checks: {
+    activeCardCount: number
+    readyForFrontEnd: boolean
+    reasons: string[]
+  }
+  conflicts: {
+    activeReleaseCountSameUnitChannel: number
+    releases: Array<{
+      channel?: string
+      id?: number | string
+      priority?: number
+      startAt?: string
+      status?: string
+    }>
+  }
+  resolution: PreviewResolution
+  unitCreatedInPreview: boolean
+}
+
+const normalizeText = (value: unknown): string => (typeof value === 'string' ? value.trim() : '')
+
+const badgeStyle = (tone: 'danger' | 'ok' | 'warn') => {
+  if (tone === 'ok') {
+    return {
+      background: '#e8f5e9',
+      color: '#1b5e20',
+    }
+  }
+
+  if (tone === 'warn') {
+    return {
+      background: '#fff8e1',
+      color: '#8d6e00',
+    }
+  }
+
+  return {
+    background: '#ffebee',
+    color: '#b71c1c',
+  }
+}
 
 export const UnitReleaseAutoCreator: React.FC = () => {
-  const { getData, setValue } = useForm()
-  const config = useConfig()
+  const { setValue } = useForm()
 
-  const [themes, setThemes] = useState<any[]>([])
-  const [selectedTheme, setSelectedTheme] = useState<string>('')
-  const [preview, setPreview] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [themes, setThemes] = useState<ThemeOption[]>([])
+  const [selectedThemeID, setSelectedThemeID] = useState<string>('')
+  const [preview, setPreview] = useState<null | PreviewPayload>(null)
+  const [previewError, setPreviewError] = useState('')
+  const [message, setMessage] = useState('')
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false)
 
   useEffect(() => {
-    // Load all themes on mount
-    loadThemes()
+    void loadThemes()
   }, [])
 
   useEffect(() => {
-    if (selectedTheme) {
-      generatePreview()
-    } else {
+    if (!selectedThemeID) {
       setPreview(null)
+      setPreviewError('')
+      setMessage('')
+      return
     }
-  }, [selectedTheme])
+
+    void loadPreview(selectedThemeID)
+  }, [selectedThemeID])
+
+  const selectedTheme = useMemo(
+    () => themes.find((theme) => String(theme.id) === selectedThemeID) || null,
+    [selectedThemeID, themes],
+  )
 
   const loadThemes = async () => {
     try {
-      const response = await fetch('/api/themes?limit=100&depth=0')
-      const data = await response.json()
-      setThemes(data.docs || [])
-    } catch (error) {
-      console.error('Failed to load themes:', error)
+      const response = await fetch('/api/themes?limit=200&depth=0&sort=name')
+      const data = (await response.json()) as { docs?: Array<Record<string, unknown>> }
+      const docs = data.docs || []
+
+      setThemes(
+        docs.map((doc) => ({
+          id: (doc.id as number | string) || '',
+          label: normalizeText(doc.name) || `Theme ${String(doc.id ?? '')}`,
+        })),
+      )
+    } catch {
+      setPreviewError('Failed to load themes.')
     }
   }
 
-  const generatePreview = async () => {
-    if (!selectedTheme) return
+  const loadPreview = async (themeID: string) => {
+    setIsLoadingPreview(true)
+    setPreview(null)
+    setPreviewError('')
+    setMessage('')
 
-    setIsLoading(true)
     try {
-      // Fetch theme details
-      const themeResponse = await fetch(`/api/themes/${selectedTheme}?depth=2`)
-      const theme = await themeResponse.json()
-
-      // Find associated story
-      const storiesResponse = await fetch(
-        `/api/stories?where[theme][equals]=${selectedTheme}&depth=2&limit=1`,
-      )
-      const storiesData = await storiesResponse.json()
-      const story = storiesData.docs?.[0]
-
-      // Find associated insightSet
-      const insightSetsResponse = await fetch(
-        `/api/insight-sets?where[theme][equals]=${selectedTheme}&depth=2&limit=1`,
-      )
-      const insightSetsData = await insightSetsResponse.json()
-      const insightSet = insightSetsData.docs?.[0]
-
-      // Find or create unit
-      let unit = null
-      if (story && insightSet) {
-        const unitsResponse = await fetch(
-          `/api/insight-story-units?where[and][0][story][equals]=${story.id}&where[and][1][insightSet][equals]=${insightSet.id}&depth=2&limit=1`,
-        )
-        const unitsData = await unitsResponse.json()
-        unit = unitsData.docs?.[0]
-      }
-
-      // Find latest story version
-      let storyVersion = null
-      if (story) {
-        const storyVersionsResponse = await fetch(
-          `/api/story-versions?where[story][equals]=${story.id}&depth=2&sort=-createdAt&limit=1`,
-        )
-        const storyVersionsData = await storyVersionsResponse.json()
-        storyVersion = storyVersionsData.docs?.[0]
-      }
-
-      // Find latest insightSet version
-      let insightSetVersion = null
-      if (insightSet) {
-        const insightSetVersionsResponse = await fetch(
-          `/api/insight-set-versions?where[insightSet][equals]=${insightSet.id}&depth=2&sort=-createdAt&limit=1`,
-        )
-        const insightSetVersionsData = await insightSetVersionsResponse.json()
-        insightSetVersion = insightSetVersionsData.docs?.[0]
-      }
-
-      setPreview({
-        theme: { id: theme.id, name: theme.name },
-        story: story ? { id: story.id, title: story.title } : null,
-        insightSet: insightSet ? { id: insightSet.id, name: insightSet.name } : null,
-        unit: unit ? { id: unit.id, displayTitle: unit.displayTitle || `Unit ${unit.id}` } : null,
-        storyVersion: storyVersion
-          ? {
-              id: storyVersion.id,
-              version: storyVersion.version,
-              storyTitle: story?.title || 'Unknown Story',
-              status: storyVersion.status || 'draft',
-            }
-          : null,
-        insightSetVersion: insightSetVersion
-          ? {
-              id: insightSetVersion.id,
-              version: insightSetVersion.version,
-              insightSetName: insightSet?.name || 'Unknown InsightSet',
-              status: insightSetVersion.status || 'draft',
-            }
-          : null,
+      const response = await fetch('/api/qmm/unit-releases/publish/preview', {
+        body: JSON.stringify({
+          channel: 'web',
+          mode: 'latest_published',
+          themeId: themeID,
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        method: 'POST',
       })
-    } catch (error) {
-      console.error('Failed to generate preview:', error)
-      setPreview({ error: 'Failed to load preview. Please check data integrity.' })
+
+      const data = (await response.json()) as PreviewPayload & { error?: string }
+
+      if (!response.ok) {
+        setPreviewError(data.error || 'Failed to resolve release preview.')
+        return
+      }
+
+      setPreview(data)
+    } catch {
+      setPreviewError('Failed to request preview.')
     } finally {
-      setIsLoading(false)
+      setIsLoadingPreview(false)
     }
   }
 
-  const handleThemeChange = (themeId: string) => {
-    setSelectedTheme(themeId)
-
-    // Clear previous values
-    setValue('unit', '')
-    setValue('storyVersion', '')
-    setValue('insightSetVersion', '')
-  }
-
-  const applyAutoFill = () => {
-    if (!preview || preview.error) {
-      alert('Cannot auto-fill: Preview is incomplete or contains errors.')
+  const applyToForm = () => {
+    if (!preview?.resolution) {
+      setMessage('Cannot apply: preview is missing.')
       return
     }
 
-    if (!preview.unit || !preview.storyVersion || !preview.insightSetVersion) {
-      alert(
-        'Cannot auto-fill: Missing required relationships. Please ensure all related records exist.',
-      )
+    const unitID = preview.resolution.unit.id
+    const storyVersionID = preview.resolution.storyVersion.id
+    const insightSetVersionID = preview.resolution.insightSetVersion.id
+
+    if (!unitID || !storyVersionID || !insightSetVersionID) {
+      setMessage('Cannot apply: one or more required IDs are missing in preview.')
       return
     }
 
-    // Auto-fill the form fields
-    setValue('unit', preview.unit.id)
-    setValue('storyVersion', preview.storyVersion.id)
-    setValue('insightSetVersion', preview.insightSetVersion.id)
+    setValue('themeId', selectedThemeID)
+    setValue('unit', unitID)
+    setValue('storyVersion', storyVersionID)
+    setValue('insightSetVersion', insightSetVersionID)
 
-    // Store themeId for the autoCreateUnitIfNeeded hook
-    setValue('themeId', selectedTheme)
-
-    // Set sensible defaults for other fields
-    setValue('status', 'scheduled')
+    // Keep defaults explicit so operator can still override in native fields.
     setValue('channel', 'web')
+    setValue('status', 'scheduled')
     setValue('priority', 0)
     setValue('trafficWeight', 100)
 
-    alert('✅ Form auto-filled successfully! You can now configure the release schedule and save.')
+    setMessage(
+      'Resolved IDs have been applied. Review schedule/status fields below, then click Save.',
+    )
   }
 
-  const themeOptions = themes.map((theme: any) => ({
-    label: theme.name || `Theme ${theme.id}`,
-    value: theme.id,
-  }))
+  const hasPreview = Boolean(preview?.resolution)
 
   return (
-    <div
+    <section
       style={{
-        marginBottom: '2rem',
-        padding: '1.5rem',
-        border: '1px solid #e0e0e0',
-        borderRadius: '8px',
-        backgroundColor: '#f9f9f9',
+        background: '#f8fafc',
+        border: '1px solid #dbe4ee',
+        borderRadius: 8,
+        marginBottom: 24,
+        padding: 20,
       }}
     >
-      <h2 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '1.5rem' }}>
-        Quick Unit Release Creator
-      </h2>
-      <div
-        style={{
-          marginBottom: '1.5rem',
-          padding: '1rem',
-          backgroundColor: '#e3f2fd',
-          borderLeft: '4px solid #2196f3',
-          borderRadius: '4px',
-        }}
-      >
-        <h3 style={{ marginTop: 0, marginBottom: '0.5rem', fontSize: '1rem', color: '#1976d2' }}>
-          How to create a Unit Release:
-        </h3>
-        <ol style={{ margin: '0', paddingLeft: '1.5rem', color: '#0d47a1' }}>
-          <li>
-            <strong>Select a Theme</strong> from the dropdown below
-          </li>
-          <li>Review the preview to ensure all relationships are correct (✅ green = good)</li>
-          <li>
-            Click <strong>"Auto-Fill Form"</strong> to automatically fill all version fields
-          </li>
-          <li>Scroll down to configure the release schedule (Status, Start At, Priority)</li>
-          <li>
-            Click <strong>Save</strong> to create the Unit Release
-          </li>
-        </ol>
-      </div>
-      <p style={{ marginBottom: '1.5rem', color: '#666' }}>
-        Select a Theme below, and the system will automatically find all associated records and fill
-        the form for you.
+      <h2 style={{ fontSize: 20, margin: 0 }}>Unit Release Resolver</h2>
+      <p style={{ color: '#475569', margin: '8px 0 0' }}>
+        Select a Theme, preview the exact Story + InsightSet + Version mapping, then apply resolved
+        IDs to the form.
       </p>
 
-      <div style={{ marginBottom: '1.5rem' }}>
-        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-          Theme (Required)
-        </label>
+      <div style={{ marginTop: 16 }}>
+        <label style={{ display: 'block', fontWeight: 600, marginBottom: 6 }}>Theme</label>
         <select
-          value={selectedTheme}
-          onChange={(e) => handleThemeChange(e.target.value)}
-          style={{
-            width: '100%',
-            padding: '0.5rem',
-            fontSize: '1rem',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
+          onChange={(event) => {
+            setSelectedThemeID(event.target.value)
           }}
+          style={{
+            border: '1px solid #cbd5e1',
+            borderRadius: 6,
+            fontSize: 14,
+            padding: '8px 10px',
+            width: '100%',
+          }}
+          value={selectedThemeID}
         >
-          <option value="">-- Select a Theme --</option>
-          {themeOptions.map((option: any) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
+          <option value="">-- Select Theme --</option>
+          {themes.map((theme) => (
+            <option key={String(theme.id)} value={String(theme.id)}>
+              {theme.label}
             </option>
           ))}
         </select>
-        <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#666' }}>
-          <strong>What happens when you select a Theme:</strong>
-          <br />
-          • Finds the Story and InsightSet linked to this Theme
-          <br />
-          • Finds the Unit that connects the Story and InsightSet
-          <br />
-          • Finds the latest published versions of the Story and InsightSet
-          <br />
-          • Displays all relationships in the Preview below
-          <br />• Click "Auto-Fill Form" to automatically fill all version fields
-        </div>
       </div>
 
-      {isLoading && (
-        <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
-          Loading preview...
+      {isLoadingPreview ? (
+        <div style={{ color: '#64748b', marginTop: 16 }}>Resolving relationships...</div>
+      ) : null}
+
+      {previewError ? (
+        <div
+          style={{
+            ...badgeStyle('danger'),
+            borderRadius: 6,
+            marginTop: 16,
+            padding: '10px 12px',
+          }}
+        >
+          {previewError}
         </div>
-      )}
+      ) : null}
 
-      {!isLoading && preview && (
-        <div>
-          <h3 style={{ marginBottom: '1rem' }}>Preview</h3>
+      {hasPreview && preview ? (
+        <div style={{ marginTop: 18 }}>
+          <h3 style={{ fontSize: 16, margin: '0 0 10px' }}>Resolution Snapshot</h3>
+          <div
+            style={{
+              background: 'white',
+              border: '1px solid #e2e8f0',
+              borderRadius: 8,
+              padding: 12,
+            }}
+          >
+            <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+              <tbody>
+                <tr>
+                  <td style={{ borderBottom: '1px solid #edf2f7', fontWeight: 600, padding: 8, width: '26%' }}>
+                    Theme
+                  </td>
+                  <td style={{ borderBottom: '1px solid #edf2f7', padding: 8 }}>
+                    {preview.resolution.theme.name} ({preview.resolution.theme.slug || 'no-slug'}) ·{' '}
+                    {preview.resolution.theme.status || 'unknown'}
+                  </td>
+                </tr>
+                <tr>
+                  <td style={{ borderBottom: '1px solid #edf2f7', fontWeight: 600, padding: 8 }}>
+                    Story
+                  </td>
+                  <td style={{ borderBottom: '1px solid #edf2f7', padding: 8 }}>
+                    {preview.resolution.story.title} · {preview.resolution.story.status || 'unknown'}
+                  </td>
+                </tr>
+                <tr>
+                  <td style={{ borderBottom: '1px solid #edf2f7', fontWeight: 600, padding: 8 }}>
+                    Story Version
+                  </td>
+                  <td style={{ borderBottom: '1px solid #edf2f7', padding: 8 }}>
+                    {preview.resolution.storyVersion.displayTitle || preview.resolution.storyVersion.version} · ID:{' '}
+                    {String(preview.resolution.storyVersion.id ?? '-')}
+                  </td>
+                </tr>
+                <tr>
+                  <td style={{ borderBottom: '1px solid #edf2f7', fontWeight: 600, padding: 8 }}>
+                    Insight Set
+                  </td>
+                  <td style={{ borderBottom: '1px solid #edf2f7', padding: 8 }}>
+                    {preview.resolution.insightSet.name} · {preview.resolution.insightSet.status || 'unknown'}
+                  </td>
+                </tr>
+                <tr>
+                  <td style={{ borderBottom: '1px solid #edf2f7', fontWeight: 600, padding: 8 }}>
+                    Insight Version
+                  </td>
+                  <td style={{ borderBottom: '1px solid #edf2f7', padding: 8 }}>
+                    {preview.resolution.insightSetVersion.displayTitle ||
+                      preview.resolution.insightSetVersion.version}{' '}
+                    · ID: {String(preview.resolution.insightSetVersion.id ?? '-')}
+                  </td>
+                </tr>
+                <tr>
+                  <td style={{ fontWeight: 600, padding: 8 }}>Unit</td>
+                  <td style={{ padding: 8 }}>
+                    {preview.resolution.unit.displayTitle || `Unit ${String(preview.resolution.unit.id ?? '-')}`}{' '}
+                    · ID: {String(preview.resolution.unit.id ?? '-')}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
-          {preview.error ? (
-            <div
+          <div style={{ marginTop: 12 }}>
+            <span
               style={{
-                padding: '1rem',
-                backgroundColor: '#ffebee',
-                border: '1px solid #ef5350',
-                borderRadius: '4px',
-                color: '#c62828',
+                ...badgeStyle(preview.checks.readyForFrontEnd ? 'ok' : 'warn'),
+                borderRadius: 999,
+                display: 'inline-block',
+                fontSize: 12,
+                fontWeight: 600,
+                padding: '4px 10px',
               }}
             >
-              <strong>Error:</strong> {preview.error}
-            </div>
-          ) : (
+              {preview.checks.readyForFrontEnd
+                ? `Front-end ready (${preview.checks.activeCardCount} active cards)`
+                : 'Not front-end ready'}
+            </span>
+          </div>
+
+          {preview.checks.reasons.length ? (
+            <ul style={{ color: '#92400e', margin: '10px 0 0', paddingLeft: 20 }}>
+              {preview.checks.reasons.map((reason) => (
+                <li key={reason}>{reason}</li>
+              ))}
+            </ul>
+          ) : null}
+
+          {preview.resolution.warnings.length ? (
+            <ul style={{ color: '#7c2d12', margin: '10px 0 0', paddingLeft: 20 }}>
+              {preview.resolution.warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          ) : null}
+
+          {preview.conflicts.activeReleaseCountSameUnitChannel > 0 ? (
             <div
               style={{
-                backgroundColor: 'white',
-                padding: '1rem',
-                borderRadius: '4px',
-                border: '1px solid #e0e0e0',
+                ...badgeStyle('warn'),
+                borderRadius: 6,
+                marginTop: 12,
+                padding: '10px 12px',
               }}
             >
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <tbody>
-                  <tr>
-                    <td
-                      style={{
-                        padding: '0.5rem',
-                        borderBottom: '1px solid #eee',
-                        fontWeight: 'bold',
-                        width: '30%',
-                      }}
-                    >
-                      Theme:
-                    </td>
-                    <td style={{ padding: '0.5rem', borderBottom: '1px solid #eee' }}>
-                      {preview.theme ? (
-                        preview.theme.name
-                      ) : (
-                        <span style={{ color: '#f44336' }}>❌ Not found</span>
-                      )}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td
-                      style={{
-                        padding: '0.5rem',
-                        borderBottom: '1px solid #eee',
-                        fontWeight: 'bold',
-                      }}
-                    >
-                      Story:
-                    </td>
-                    <td style={{ padding: '0.5rem', borderBottom: '1px solid #eee' }}>
-                      {preview.story ? (
-                        preview.story.title
-                      ) : (
-                        <span style={{ color: '#f44336' }}>❌ Not found</span>
-                      )}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td
-                      style={{
-                        padding: '0.5rem',
-                        borderBottom: '1px solid #eee',
-                        fontWeight: 'bold',
-                      }}
-                    >
-                      InsightSet:
-                    </td>
-                    <td style={{ padding: '0.5rem', borderBottom: '1px solid #eee' }}>
-                      {preview.insightSet ? (
-                        preview.insightSet.name
-                      ) : (
-                        <span style={{ color: '#f44336' }}>❌ Not found</span>
-                      )}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td
-                      style={{
-                        padding: '0.5rem',
-                        borderBottom: '1px solid #eee',
-                        fontWeight: 'bold',
-                      }}
-                    >
-                      Unit:
-                    </td>
-                    <td style={{ padding: '0.5rem', borderBottom: '1px solid #eee' }}>
-                      {preview.unit ? (
-                        <span style={{ color: '#4caf50' }}>✅ {preview.unit.displayTitle}</span>
-                      ) : (
-                        <span style={{ color: '#ff9800' }}>⚠️ Will be auto-created</span>
-                      )}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td
-                      style={{
-                        padding: '0.5rem',
-                        borderBottom: '1px solid #eee',
-                        fontWeight: 'bold',
-                      }}
-                    >
-                      Story Version:
-                    </td>
-                    <td style={{ padding: '0.5rem', borderBottom: '1px solid #eee' }}>
-                      {preview.storyVersion ? (
-                        <div>
-                          <span style={{ color: '#4caf50' }}>
-                            ✅ {preview.storyVersion.storyTitle}
-                          </span>
-                          <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '2px' }}>
-                            Version: <strong>v{preview.storyVersion.version}</strong> | Status:{' '}
-                            <span
-                              style={{
-                                color:
-                                  preview.storyVersion.status === 'published'
-                                    ? '#4caf50'
-                                    : '#ff9800',
-                                textTransform: 'capitalize',
-                              }}
-                            >
-                              {preview.storyVersion.status}
-                            </span>
-                          </div>
-                        </div>
-                      ) : (
-                        <span style={{ color: '#f44336' }}>❌ Not found</span>
-                      )}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style={{ padding: '0.5rem', fontWeight: 'bold' }}>InsightSet Version:</td>
-                    <td style={{ padding: '0.5rem' }}>
-                      {preview.insightSetVersion ? (
-                        <div>
-                          <span style={{ color: '#4caf50' }}>
-                            ✅ {preview.insightSetVersion.insightSetName}
-                          </span>
-                          <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '2px' }}>
-                            Version: <strong>v{preview.insightSetVersion.version}</strong> | Status:{' '}
-                            <span
-                              style={{
-                                color:
-                                  preview.insightSetVersion.status === 'published'
-                                    ? '#4caf50'
-                                    : '#ff9800',
-                                textTransform: 'capitalize',
-                              }}
-                            >
-                              {preview.insightSetVersion.status}
-                            </span>
-                          </div>
-                        </div>
-                      ) : (
-                        <span style={{ color: '#f44336' }}>❌ Not found</span>
-                      )}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-
-              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px dashed #ccc' }}>
-                <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#666' }}>
-                  <strong>Note:</strong> When you click "Auto-Fill Form", the system will:
-                </p>
-                <ul
-                  style={{ margin: '0', paddingLeft: '1.5rem', fontSize: '0.9rem', color: '#666' }}
-                >
-                  <li>Link all related records automatically</li>
-                  <li>Set default values for status, channel, and priority</li>
-                  <li>Allow you to configure the schedule before saving</li>
-                </ul>
-              </div>
+              {preview.conflicts.activeReleaseCountSameUnitChannel} active release(s) currently exist
+              for this unit + channel and will be auto-archived if you save with status=active.
             </div>
-          )}
+          ) : null}
 
-          <div style={{ marginTop: '1.5rem', textAlign: 'right' }}>
+          <div style={{ marginTop: 14, textAlign: 'right' }}>
             <button
-              type="button"
-              onClick={applyAutoFill}
-              disabled={!selectedTheme || !preview || preview.error}
+              onClick={applyToForm}
               style={{
-                padding: '0.5rem 1.5rem',
-                backgroundColor: !selectedTheme || !preview || preview.error ? '#ccc' : '#007bff',
-                color: 'white',
+                background: '#0f172a',
                 border: 'none',
-                borderRadius: '4px',
-                fontSize: '1rem',
-                cursor: !selectedTheme || !preview || preview.error ? 'not-allowed' : 'pointer',
+                borderRadius: 6,
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: 14,
+                fontWeight: 600,
+                padding: '8px 14px',
               }}
+              type="button"
             >
-              Auto-Fill Form
+              Apply Resolved IDs to Form
             </button>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {!isLoading && !preview && selectedTheme && (
-        <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
-          No preview available. Please ensure all related records exist.
+      {message ? (
+        <div
+          style={{
+            ...badgeStyle('ok'),
+            borderRadius: 6,
+            marginTop: 14,
+            padding: '10px 12px',
+          }}
+        >
+          {message}
         </div>
-      )}
-    </div>
+      ) : null}
+
+      {selectedTheme && !isLoadingPreview && !hasPreview && !previewError ? (
+        <div style={{ color: '#64748b', marginTop: 16 }}>
+          No preview data returned. Please verify related Story / InsightSet / Version data.
+        </div>
+      ) : null}
+    </section>
   )
 }
